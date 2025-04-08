@@ -1,0 +1,26 @@
+version: 2
+
+sources:
+  - name: "helix_poc_proj"
+    database: DA_HELIX_DB_TEST
+    schema: HELIX_RAW
+    tables:
+      - name: "RAW_CUSTOMER"
+      - name: "RAW_LINEITEM"
+      - name: "RAW_NATION"
+      - name: RAW_ORDERS
+      - name: RAW_PART
+      - name: RAW_PARTSUPP
+      - name: RAW_REGION
+      - name: RAW_SUPPLIER
+  - name: "helix_poc_bronze_proj"
+    database: DA_HELIX_DB_TEST
+    schema: HELIX_STG
+    tables:
+      - name: STG_PART
+  - name: "helix_poc_audit_proj"
+    database: DA_HELIX_DB_TEST
+    schema: HELIX_AUDIT
+    tables:
+      - name: "TASK_METADATA"
+      - name: "TASK_RUN_STATS"

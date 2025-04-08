@@ -1,0 +1,39 @@
+type: "orchestration"
+version: "1.0"
+pipeline:
+  components:
+    Start:
+      type: "start"
+      transitions:
+        unconditional:
+        - "dbt Core"
+      parameters:
+        componentName: "Start"
+    dbt Core:
+      type: "commands-for-dbt-core-v2"
+      parameters:
+        componentName: "dbt Core"
+        dbtProjectLocation: "External repository"
+        dbtCommand: "dbt run"
+        mapDbtEnvironmentVariables:
+        globalProfileConfig:
+        profileOutputsConfig:
+        gitUrl: "https://github.com/abansal_monte/DAI_Helix_DataLakeHouse.git"
+        gitBranch: "main"
+        gitFolderPath: "models/silver"
+        gitUsername: "abansal@montefiore.org"
+        gitPassword: "GIT_cred"
+      postProcessing:
+        updateScalarVariables:
+design:
+  components:
+    Start:
+      position:
+        x: -510
+        "y": -30
+      tempMetlId: 1
+    dbt Core:
+      position:
+        x: -350
+        "y": -30
+      tempMetlId: 2

@@ -1,0 +1,253 @@
+type: "orchestration"
+version: "1.0"
+pipeline:
+  components:
+    Start:
+      type: "start"
+      transitions:
+        unconditional:
+        - "pre_run_batch_stats_update"
+      parameters:
+        componentName: "Start"
+    bronze_layer_data_load:
+      type: "run-orchestration"
+      transitions:
+        success:
+        - "silver_layer_data_load"
+        failure:
+        - "email_notification_on_failure"
+      parameters:
+        componentName: "bronze_layer_data_load"
+        orchestrationJob: "pl_helix_poc_part_dataset_bronze_daily_incremental.orch.yaml"
+        setScalarVariables:
+        setGridVariables:
+      postProcessing:
+        updateScalarVariables:
+    pre_run_batch_stats_update:
+      type: "sql-executor"
+      transitions:
+        success:
+        - "passing_batch_run_id"
+      parameters:
+        componentName: "pre_run_batch_stats_update"
+        scriptLocation: "Component"
+        declareSqlVariables: "Include selected"
+        variablesToInclude:
+        sqlScript: "INSERT INTO DA_HELIX_DB_TEST.HELIX_AUDIT.BATCH_RUN_STATS\r\n\r\
+          \n    with batch_dtls_cte AS (\r\n        SELECT distinct batch_name as\
+          \ batch_name from DA_HELIX_DB_TEST.HELIX_AUDIT.BATCH_METADATA\r\n      \
+          \      where batch_id = 1002\r\n    )\r\n        SELECT \r\n        HEX_ENCODE(RANDOM())\
+          \ AS  execution_run_id, \r\n        1002 as batch_id,\r\n        t1.batch_name\
+          \ as batch_name,\r\n        current_timestamp as batch_start_time,\r\n \
+          \       null,\r\n        'RUNNING' as status,\r\n        CURRENT_USER()\
+          \ as CREATED_BY,\r\n        CURRENT_DATE() as CREATED_DATE,  \r\n      \
+          \  CURRENT_USER() as MODIFIED_BY,\r\n        CURRENT_DATE() as MODIFIED_DATE\
+          \ \r\n        from batch_dtls_cte t1"
+      postProcessing:
+        updateScalarVariables:
+    silver_layer_data_load:
+      type: "run-orchestration"
+      transitions:
+        success:
+        - "post_run_batch_stats_update"
+        failure:
+        - "Send Email 3"
+      parameters:
+        componentName: "silver_layer_data_load"
+        orchestrationJob:
+        setScalarVariables:
+        setGridVariables:
+      postProcessing:
+        updateScalarVariables:
+    email_notification_on_failure:
+      type: "send-email-v2"
+      transitions:
+        success:
+        - "End Failure"
+      parameters:
+        componentName: "email_notification_on_failure"
+        toRecipients:
+        ccRecipients:
+        subject:
+        message:
+        senderAddress:
+        replyAddress:
+        smtpUsername:
+        smtpPassword:
+        smtpHostname:
+        smtpPort: "25"
+        enableSslTls:
+        enableStartTls: "Yes"
+      postProcessing:
+        updateScalarVariables:
+    End Failure:
+      type: "end-failure"
+      parameters:
+        componentName: "End Failure"
+      postProcessing:
+        updateScalarVariables:
+    post_run_batch_stats_update:
+      type: "sql-executor"
+      transitions:
+        success:
+        - "email_notification_on_sucess"
+      parameters:
+        componentName: "post_run_batch_stats_update"
+        scriptLocation: "Component"
+        declareSqlVariables: "Include selected"
+        variablesToInclude:
+        sqlScript:
+      postProcessing:
+        updateScalarVariables:
+    email_notification_on_sucess:
+      type: "send-email-v2"
+      transitions:
+        success:
+        - "End Success"
+      parameters:
+        componentName: "email_notification_on_sucess"
+        toRecipients:
+        ccRecipients:
+        subject:
+        message:
+        senderAddress:
+        replyAddress:
+        smtpUsername:
+        smtpPassword:
+        smtpHostname:
+        smtpPort: "25"
+        enableSslTls:
+        enableStartTls: "Yes"
+      postProcessing:
+        updateScalarVariables:
+    End Success:
+      type: "end-success"
+      parameters:
+        componentName: "End Success"
+      postProcessing:
+        updateScalarVariables:
+    Send Email 3:
+      type: "send-email-v2"
+      transitions:
+        success:
+        - "End Failure 2"
+      parameters:
+        componentName: "Send Email 3"
+        toRecipients:
+        ccRecipients:
+        subject:
+        message:
+        senderAddress:
+        replyAddress:
+        smtpUsername:
+        smtpPassword:
+        smtpHostname:
+        smtpPort: "25"
+        enableSslTls:
+        enableStartTls: "Yes"
+      postProcessing:
+        updateScalarVariables:
+    End Failure 2:
+      type: "end-failure"
+      parameters:
+        componentName: "End Failure 2"
+      postProcessing:
+        updateScalarVariables:
+    passing_batch_run_id:
+      type: "python-pushdown"
+      transitions:
+        success:
+        - "bronze_layer_data_load"
+      parameters:
+        componentName: "passing_batch_run_id"
+        warehouse: "[Environment Default]"
+        externalAccessIntegrations:
+        pythonVersion: "3.10"
+        packagesGrid:
+        scriptLocation: "Component"
+        pythonScript: |-
+          fetch_exec_run_id_qry = f"""
+          SELECT execution_run_id FROM batch_run_stats WHERE batch_id = '{batch_id}'
+          """
+          execution_run_id = session.sql(fetch_exec_run_id_qry).collect()[0][0]
+        scriptTimeout: "360"
+      postProcessing:
+        updateScalarVariables:
+  variables:
+    batch_id:
+      metadata:
+        type: "TEXT"
+        description: ""
+        scope: "SHARED"
+        visibility: "PUBLIC"
+      defaultValue: "1002"
+    part_dataset_load_execution_run_id:
+      metadata:
+        type: "TEXT"
+        description: "execution run id in batch_run_stats table for loading data end\
+          \ to end for part dataset"
+        scope: "SHARED"
+        visibility: "PUBLIC"
+      defaultValue: ""
+design:
+  components:
+    Start:
+      position:
+        x: -800
+        "y": -250
+      tempMetlId: 1
+    bronze_layer_data_load:
+      position:
+        x: -410
+        "y": -150
+      tempMetlId: 2
+    pre_run_batch_stats_update:
+      position:
+        x: -710
+        "y": -150
+      tempMetlId: 3
+    silver_layer_data_load:
+      position:
+        x: -230
+        "y": -150
+      tempMetlId: 4
+    email_notification_on_failure:
+      position:
+        x: -240
+        "y": -240
+      tempMetlId: 5
+    End Failure:
+      position:
+        x: -130
+        "y": -240
+      tempMetlId: 6
+    post_run_batch_stats_update:
+      position:
+        x: -60
+        "y": -150
+      tempMetlId: 7
+    email_notification_on_sucess:
+      position:
+        x: 130
+        "y": -150
+      tempMetlId: 8
+    End Success:
+      position:
+        x: 280
+        "y": -150
+      tempMetlId: 9
+    Send Email 3:
+      position:
+        x: -100
+        "y": -40
+      tempMetlId: 10
+    End Failure 2:
+      position:
+        x: 20
+        "y": -40
+      tempMetlId: 11
+    passing_batch_run_id:
+      position:
+        x: -560
+        "y": -150
+      tempMetlId: 12

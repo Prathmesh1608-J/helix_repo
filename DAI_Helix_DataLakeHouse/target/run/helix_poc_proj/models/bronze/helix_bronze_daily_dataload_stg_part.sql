@@ -1,0 +1,11 @@
+-- back compat for old kwarg name
+  
+  begin;
+    
+
+        insert into DA_HELIX_DB_TEST.HELIX_STG.STG_PART ("P_PART_CODE", "P_MFGR_CODE", "P_NAME", "P_BRAND", "P_TYPE", "P_SIZE", "P_CONTAINER", "P_RETAILPRICE", "P_COMMENT", "P_MODIFIED_DATE", "BATCH_ID", "JOB_ID", "EXECUTION_ID", "INSTANCE_ID", "CREATED_BY", "CREATED_DATE", "MODIFIED_BY", "MODIFIED_DATE")
+        (
+            select "P_PART_CODE", "P_MFGR_CODE", "P_NAME", "P_BRAND", "P_TYPE", "P_SIZE", "P_CONTAINER", "P_RETAILPRICE", "P_COMMENT", "P_MODIFIED_DATE", "BATCH_ID", "JOB_ID", "EXECUTION_ID", "INSTANCE_ID", "CREATED_BY", "CREATED_DATE", "MODIFIED_BY", "MODIFIED_DATE"
+            from DA_HELIX_DB_TEST.HELIX_STG.STG_PART__dbt_tmp
+        );
+    commit;

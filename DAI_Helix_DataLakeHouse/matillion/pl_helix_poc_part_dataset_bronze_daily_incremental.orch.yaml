@@ -1,0 +1,139 @@
+type: "orchestration"
+version: "1.0"
+pipeline:
+  components:
+    Start:
+      type: "start"
+      transitions:
+        unconditional:
+        - "pre_run_job_run_stats_update"
+      parameters:
+        componentName: "Start"
+    dbt Core:
+      type: "commands-for-dbt-core-v2"
+      transitions:
+        success:
+        - "post_run_job_run_success_stats_update"
+        failure:
+        - "post_run_job_run_failed_stats_update"
+      parameters:
+        componentName: "dbt Core"
+        dbtProjectLocation: "Current project"
+        dbtProject:
+        dbtCommand: "dbt run --select helix_bronze_daily_dataload_stg_part --vars"
+        mapDbtEnvironmentVariables:
+        globalProfileConfig:
+        profileOutputsConfig:
+      postProcessing:
+        updateScalarVariables:
+    pre_run_job_run_stats_update:
+      type: "sql-executor"
+      transitions:
+        success:
+        - "dbt Core"
+      parameters:
+        componentName: "pre_run_job_run_stats_update"
+        scriptLocation: "Component"
+        declareSqlVariables: "Include selected"
+        variablesToInclude:
+        sqlScript: "INSERT INTO DA_HELIX_DB_TEST.HELIX_AUDIT.JOB_RUN_STATS\r\n\r\n\
+          \    with job_dtls_cte AS (\r\n        SELECT distinct job_id, job_name\
+          \ as job_name from DA_HELIX_DB_TEST.HELIX_AUDIT.JOB_METADATA\r\n       \
+          \     where batch_id = 1002\r\n    ),\r\n    batch_dtls_cte AS (\r\n   \
+          \     SELECT distinct execution_run_id as execution_run_id from DA_HELIX_DB_TEST.HELIX_AUDIT.BATCH_RUN_STATS\r\
+          \n            where batch_id = 1002\r\n    )\r\n        SELECT \r\n    \
+          \    t2.execution_run_id AS  execution_run_id, \r\n        t1.job_id as\
+          \ job_id,\r\n        t1.job_name as job_name,\r\n        current_timestamp\
+          \ as job_start_time,\r\n        null,\r\n        'RUNNING' as status,\r\n\
+          \        CURRENT_USER() as CREATED_BY,\r\n        CURRENT_DATE() as CREATED_DATE,\
+          \  \r\n        CURRENT_USER() as MODIFIED_BY,\r\n        CURRENT_DATE()\
+          \ as MODIFIED_DATE \r\n        from job_dtls_cte t1, batch_dtls_cte t2"
+      postProcessing:
+        updateScalarVariables:
+    post_run_job_run_success_stats_update:
+      type: "sql-executor"
+      transitions:
+        success:
+        - "End Success"
+      parameters:
+        componentName: "post_run_job_run_success_stats_update"
+        scriptLocation: "Component"
+        declareSqlVariables: "Include selected"
+        variablesToInclude:
+        sqlScript:
+      postProcessing:
+        updateScalarVariables:
+    post_run_job_run_failed_stats_update:
+      type: "sql-executor"
+      transitions:
+        success:
+        - "End Failure"
+      parameters:
+        componentName: "post_run_job_run_failed_stats_update"
+        scriptLocation: "Component"
+        declareSqlVariables: "Include selected"
+        variablesToInclude:
+        sqlScript: "UPDATE DA_HELIX_DB_TEST.HELIX_AUDIT.JOB_RUN_STATS;\r\n\r\n   \
+          \     JOB_END_TIME  = current_timestamp(),\r\n        STATUS = 'COMPLETED',\r\
+          \n        MODIFIED_BY = CURRENT_USER(),\r\n        MODIFIED_DATE = CURRENT_DATE()\r\
+          \n        FROM \r\n         WHERE EXECUTION_RUN_ID= {{ execution_run_id\
+          \ }}; "
+      postProcessing:
+        updateScalarVariables:
+    End Failure:
+      type: "end-failure"
+      parameters:
+        componentName: "End Failure"
+      postProcessing:
+        updateScalarVariables:
+    End Success:
+      type: "end-success"
+      parameters:
+        componentName: "End Success"
+      postProcessing:
+        updateScalarVariables:
+  variables:
+    task_id:
+      metadata:
+        type: "TEXT"
+        description: ""
+        scope: "SHARED"
+        visibility: "PUBLIC"
+      defaultValue: ""
+design:
+  components:
+    Start:
+      position:
+        x: -630
+        "y": -60
+      tempMetlId: 1
+    dbt Core:
+      position:
+        x: -370
+        "y": -60
+      tempMetlId: 2
+    pre_run_job_run_stats_update:
+      position:
+        x: -510
+        "y": -60
+      tempMetlId: 3
+    post_run_job_run_success_stats_update:
+      position:
+        x: -200
+        "y": 10
+      tempMetlId: 4
+    post_run_job_run_failed_stats_update:
+      position:
+        x: -180
+        "y": -120
+      tempMetlId: 6
+    End Failure:
+      position:
+        x: -40
+        "y": -120
+      tempMetlId: 7
+    End Success:
+      position:
+        x: -80
+        "y": 10
+      tempMetlId: 8
